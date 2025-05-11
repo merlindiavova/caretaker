@@ -11,9 +11,9 @@ execute specific commands when changes are detected.
 
 ## Requirements
 
-- POSIX-compatible shell environment
-- A watcher suchas [`watchexec`](https://github.com/watchexec/watchexec)
-installed and available in your PATH
+-   POSIX-compatible shell environment
+-   A watcher such as [`watchexec`](https://github.com/watchexec/watchexec)
+    installed and available in your PATH
 
 ## Installation
 
@@ -37,19 +37,19 @@ TRACE=1 caretaker [-hv] [-f <watch-plan>] <command>
 
 ### Options
 
-- `-f <watch-plan>`: Specify the watch plan file (default: `./.watch.sh`)
-- `-h`: Display help message
-- `-v`: Display version information
+-   `-f <watch-plan>`: Specify the watch plan file (default: `./.watch.sh`)
+-   `-h`: Display help message
+-   `-v`: Display version information
 
 ### Commands
 
-- `init`: Initialize a default `.watch.sh` plan in the current directory
-- `watch`: Watch for changes using the plan (default if no command is given)
+-   `init`: Initialize a default `.watch.sh` plan in the current directory
+-   `watch`: Watch for changes using the plan (default if no command is given)
 
 ### Environment Variables
 
-- `TRACE`: Enables verbose shell mode (set -x)
-- `NO_COLOR`: Disables ANSI colors in output
+-   `TRACE`: Enables verbose shell mode (set -x)
+-   `NO_COLOR`: Disables ANSI colors in output
 
 ## Getting Started
 
@@ -80,50 +80,51 @@ Example watch plan:
 # shellcheck disable=SC2034
 
 watch_backend() {
-  # Watcher (currently only "watchexec" is supported)
-  watch_backend_watcher="watchexec"
+    # Watcher (currently only "watchexec" is supported)
+    watch_backend_watcher="watchexec"
 
-  # Name of the watcher (used for logging)
-  watch_backend_name="backend watcher"
+    # Name of the watcher (used for logging)
+    watch_backend_name="backend watcher"
 
-  # Directories or files to watch for changes
-  watch_backend_paths='src/backend'
+    # Directories or files to watch for changes
+    watch_backend_paths='src/backend'
 
-  # File extensions to filter on
-  watch_backend_exts='go'
+    # File extensions to filter on
+    watch_backend_exts='go'
 
-  # Paths to ignore
-  watch_backend_ignore_paths='vendor'
+    # Paths to ignore
+    watch_backend_ignore_paths='vendor'
 
-  # Command to run on change
-  watch_backend_command="go test ./..."
+    # Command to run on change
+    watch_backend_command="go test ./..."
 
-  # Clear screen before running command
-  watch_backend_clear_screen=true
+    # Clear screen before running command
+    watch_backend_clear_screen=true
 
-  # Signal to send to command on termination
-  watch_backend_kill_signal='SIGINT'
+    # Postpone first run until a file change (default: true)
+    watch_backend_postpone_first_run=true
+
+    # Signal to send to command on termination
+    watch_backend_kill_signal='SIGINT'
 }
 
 watch_frontend() {
-  watch_frontend_watcher="watchexec"
-  watch_frontend_paths='src/frontend'
-  watch_frontend_exts='js jsx css'
-  watch_frontend_ignore_paths='node_modules'
-  watch_frontend_command="npm test"
-  watch_frontend_clear_screen=true
+    watch_frontend_watcher="watchexec"
+    watch_frontend_paths='src/frontend'
+    watch_frontend_exts='js jsx css'
+    watch_frontend_ignore_paths='node_modules'
+    watch_frontend_command="npm test"
+    watch_frontend_first_run=false
+    watch_frontend_clear_screen=true
 }
 ```
 
 ## Supported Watchers
 
 Currently supported watchers:
-- `watchexec` - See [`watchexec`](https://github.com/watchexec/watchexec)
+
+-   `watchexec` - See [`watchexec`](https://github.com/watchexec/watchexec)
 
 ## License
 
 MIT, see [LICENSE](COPYING)
-
-## Version
-
-0.1.3

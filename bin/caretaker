@@ -3,10 +3,10 @@
 [ -n "${TRACE+defined}" ] && set -x
 
 CARETAKER_WATCH_PLAN='./.watch.sh'
-readonly CARETAKER_NAME='caretaker' CARETAKER_VERSION=0.1.3
+readonly CARETAKER_NAME='caretaker' CARETAKER_VERSION=0.1.4
 
 print_help() {
-	printf '%s\n' 'caretaker - plan and execute multiple watchers
+        printf '%s\n' 'caretaker - plan and execute multiple watchers
 
 Usage: caretaker [-hv] [-f <watch-plan>] <command>
        DEBUG=1 caretaker [-hv] [-f <watch-plan>] <command>
@@ -31,135 +31,139 @@ Environment variables:
 }
 
 main() {
-	while getopts f:hv option; do
-		case $option in
-		f)
-			CARETAKER_WATCH_PLAN="$OPTARG"
-			;;
-		h)
-			print_help
-			exit "$?"
-			;;
-		v)
-			printf 'version %s %s\n' \
-				"$CARETAKER_VERSION" \
-				"$CARETAKER_NAME"
-			exit 0
-			;;
-		? | *)
-			printf 'error: %s: %s\n' \
-				"${option}" \
-				'unknown option'
-			exit 1
-			;;
-		esac
-	done
-	shift "$((OPTIND - 1))"
+        while getopts f:hv option; do
+                case $option in
+                f)
+                        CARETAKER_WATCH_PLAN="$OPTARG"
+                        ;;
+                h)
+                        print_help
+                        exit "$?"
+                        ;;
+                v)
+                        printf 'version %s %s\n' \
+                                "$CARETAKER_VERSION" \
+                                "$CARETAKER_NAME"
+                        exit 0
+                        ;;
+                ? | *)
+                        printf 'error: %s: %s\n' \
+                                "${option}" \
+                                'unknown option'
+                        exit 1
+                        ;;
+                esac
+        done
+        shift "$((OPTIND - 1))"
 
-	cmd="${1:-watch}"
+        cmd="${1:-watch}"
 
-	case "$cmd" in
-	init)
-		init_watch_plan
-		;;
-	watch)
-		watch_plan
-		;;
-	esac
+        case "$cmd" in
+        init)
+                init_watch_plan
+                ;;
+        watch)
+                watch_plan
+                ;;
+        esac
 }
 
 watch_plan() {
-	if [ ! -f "$CARETAKER_WATCH_PLAN" ]; then
-		printf 'error: %s is not readable\n' "$CARETAKER_WATCH_PLAN"
-		printf '%s\n' 'please run "caretaker init" first'
-		exit 1
-	fi
+        if [ ! -f "$CARETAKER_WATCH_PLAN" ]; then
+                printf 'error: %s is not readable\n' "$CARETAKER_WATCH_PLAN"
+                printf '%s\n' 'please run "caretaker init" first'
+                exit 1
+        fi
 
-	# shellcheck disable=SC1090
-	\. "$CARETAKER_WATCH_PLAN"
+        # shellcheck disable=SC1090
+        \. "$CARETAKER_WATCH_PLAN"
 
-	pids=''
-	watches_fns="$(
-		grep -oP '^\s*watch_\w+\s*\(\)' "$CARETAKER_WATCH_PLAN" \
-			| sed -E 's/\s*\(\)//'
-	)"
+        pids=''
+        watches_fns="$(
+                grep -oP '^\s*watch_\w+\s*\(\)' "$CARETAKER_WATCH_PLAN" |
+                        sed -E 's/\s*\(\)//'
+        )"
 
-	trap trap_EXIT EXIT
+        trap trap_EXIT EXIT
 
-	for watch_fn in $watches_fns; do
-		$watch_fn
+        for watch_fn in $watches_fns; do
+                $watch_fn
 
-		eval "watcher=\${${watch_fn}_watcher:-}"
-		eval "paths=\${${watch_fn}_paths:-}"
-		eval "ignore_paths=\${${watch_fn}_ignore_paths:-}"
-		eval "exts=\${${watch_fn}_exts:-}"
-		eval "command=\${${watch_fn}_command:-}"
-		eval "clear_screen=\${${watch_fn}_clear_screen:-}"
-		eval "kill_signal=\${${watch_fn}_kill_signal:-}"
+                eval "watcher=\${${watch_fn}_watcher:-}"
+                eval "paths=\${${watch_fn}_paths:-}"
+                eval "ignore_paths=\${${watch_fn}_ignore_paths:-}"
+                eval "exts=\${${watch_fn}_exts:-}"
+                eval "command=\${${watch_fn}_command:-}"
+                eval "clear_screen=\${${watch_fn}_clear_screen:-}"
+                eval "kill_signal=\${${watch_fn}_kill_signal:-}"
+                eval "postpone_first_run=\${${watch_fn}_postpone_first_run:-}"
 
-		ensure_variable "${watcher:-}" "${watch_fn}_watcher"
-		ensure_supported_watcher "${watcher:-}"
+                ensure_variable "${watcher:-}" "${watch_fn}_watcher"
+                ensure_supported_watcher "${watcher:-}"
 
-		ensure_variable "${command:-}" "${watch_fn}_command"
-		ensure_variable "${paths:-}" "${watch_fn}_paths"
+                ensure_variable "${command:-}" "${watch_fn}_command"
+                ensure_variable "${paths:-}" "${watch_fn}_paths"
 
-		case "$watcher" in
-		watchexec)
-			# construct watchexec calls per plan
-			set -- watchexec
-			for path in ${paths:-}; do
-				set -- "$@" --watch "$path"
-			done
+                case "$watcher" in
+                watchexec)
+                        # construct watchexec calls per plan
+                        set -- watchexec
+                        for path in ${paths:-}; do
+                                set -- "$@" --watch "$path"
+                        done
 
-			for ext in ${exts:-}; do
-				set -- "$@" -e "$ext"
-			done
+                        for ext in ${exts:-}; do
+                                set -- "$@" -e "$ext"
+                        done
 
-			for dir in ${ignore_paths:-}; do
-				set -- "$@" -i "$dir"
-			done
+                        for dir in ${ignore_paths:-}; do
+                                set -- "$@" -i "$dir"
+                        done
 
-			[ "${clear_screen:-}" = "true" ] && set -- "$@" --clear
+                        [ "${clear_screen:-}" = "true" ] && set -- "$@" --clear
 
-			[ -n "${kill_signal:-}" ] \
-				&& set -- "$@" --signal "$kill_signal"
+                        [ "${postpone_first_run:-}" = "true" ] &&
+                                set -- "$@" --postpone
 
-			[ -n "${NO_COLOR:-}" ] \
-				&& set -- "$@" --no-colors
+                        [ -n "${kill_signal:-}" ] &&
+                                set -- "$@" --signal "$kill_signal"
 
-			# Append the command
-			# shellcheck disable=SC2086
-			set -- "$@" -- $command
+                        [ -n "${NO_COLOR:-}" ] &&
+                                set -- "$@" --no-colors
 
-			"$@" &
-			pids="$pids $!"
-			;;
-		*)
-			printf 'error: %s: %s\n' \
-				"${watcher}" \
-				'unsupported watcher'
-			printf '%s\n' 'supported watchers: watchexec'
-			;;
-		esac
-	done
+                        # Append the command
+                        # shellcheck disable=SC2086
+                        set -- "$@" -- $command
 
-	printf '%s\n' "All watches started. PIDs: $pids"
-	printf '%s\n' "Press Ctrl+C to stop all watches"
+                        "$@" &
+                        pids="$pids $!"
+                        ;;
+                *)
+                        printf 'error: %s: %s\n' \
+                                "${watcher}" \
+                                'unsupported watcher'
+                        printf '%s\n' 'supported watchers: watchexec'
+                        ;;
+                esac
+        done
 
-	# Wait for any process to exit
-	# shellcheck disable=SC2086
-	wait $pids
+        printf '%s\n' "All watches started. PIDs: $pids"
+        printf '%s\n' "Press Ctrl+C to stop all watches"
+
+        # Wait for any process to exit
+        # shellcheck disable=SC2086
+        wait $pids
 }
 
 init_watch_plan() {
-	if [ -f "$CARETAKER_WATCH_PLAN" ]; then
-		printf 'error: %s already exists\n' "$CARETAKER_WATCH_PLAN"
-		exit 1
-	fi
+        if [ -f "$CARETAKER_WATCH_PLAN" ]; then
+                printf 'error: %s already exists\n' "$CARETAKER_WATCH_PLAN"
+                exit 1
+        fi
 
-	base_filename="$(basename "$CARETAKER_WATCH_PLAN")"
+        base_filename="$(basename "$CARETAKER_WATCH_PLAN")"
 
-	cat >"$CARETAKER_WATCH_PLAN" <<EOF
+        cat >"$CARETAKER_WATCH_PLAN" <<EOF
 #!/bin/sh -eu
 # shellcheck disable=SC2034
 #
@@ -189,53 +193,56 @@ watch_action() {
 	# Clear screen before running command
 	watch_action_clear_screen=true
 
+	# Postpone first run until a file change (default: true)
+	watch_action_postpone_first_run=true
+
 	# Signal to send to command on termination
 	watch_action_kill_signal='SIGINT'
 }
 
 # repeat function run multiple plans
 EOF
-	printf 'created watch plan: %s\n' "$CARETAKER_WATCH_PLAN"
-	printf 'edit it and run: %s\n' 'caretaker'
+        printf 'created watch plan: %s\n' "$CARETAKER_WATCH_PLAN"
+        printf 'edit it and run: %s\n' 'caretaker'
 }
 
 ensure_variable() {
-	if [ -z "${1:-}" ]; then
-		printf 'error: %s: is required\n' "$2"
-		exit 1
-	fi
+        if [ -z "${1:-}" ]; then
+                printf 'error: %s: is required\n' "$2"
+                exit 1
+        fi
 }
 
 ensure_supported_watcher() {
-	case "$1" in
-	watchexec) ;;
-	*)
-		printf 'error: %s: %s\n' \
-			"${1}" \
-			'unknown watcher'
-		printf '%s\n' 'supported watchers: watchexec'
-		exit 1
-		;;
-	esac
+        case "$1" in
+        watchexec) ;;
+        *)
+                printf 'error: %s: %s\n' \
+                        "${1}" \
+                        'unknown watcher'
+                printf '%s\n' 'supported watchers: watchexec'
+                exit 1
+                ;;
+        esac
 }
 
 pid_clean() {
-	if [ -z "${pids:-}" ]; then
-		return
-	fi
+        if [ -z "${pids:-}" ]; then
+                return
+        fi
 
-	printf '\n%s\n' 'stopping all watchers...'
+        printf '\n%s\n' 'stopping all watchers...'
 
-	for pid in $pids; do
-		# shellcheck disable=SC2086
-		kill -TERM $pid 2>/dev/null
-	done
+        for pid in $pids; do
+                # shellcheck disable=SC2086
+                kill -TERM $pid 2>/dev/null
+        done
 
-	printf '%s\n' 'all watchers stopped'
+        printf '%s\n' 'all watchers stopped'
 }
 
 trap_EXIT() {
-	pid_clean
+        pid_clean
 }
 
 main "$@"
